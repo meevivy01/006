@@ -260,7 +260,7 @@ class JobThaiRowScraper:
 
             # --- 1. จัดการ Popup และ เมนู (เหมือนเดิม) ---
             try:
-                close_btn = WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, '//*[@id="close-button"]')))
+                close_btn = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="close-button"]')))
                 self.driver.execute_script("arguments[0].click();", close_btn)
                 self.random_sleep(1, 2)
             except: pass
@@ -269,7 +269,7 @@ class JobThaiRowScraper:
                 # กดเมนูเข้าสู่ระบบ
                 login_menu = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="menu-jobseeker-login"]')))
                 self.driver.execute_script("arguments[0].click();", login_menu)
-                self.random_sleep(3, 6) 
+                self.random_sleep(2, 3) 
                 
                 # กดแท็บ Employer
                 employer_tab = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="login_tab_employer"]')))
@@ -413,6 +413,7 @@ class JobThaiRowScraper:
 
         console.print("💀 Login ล้มเหลวทุกวิธี", style="bold red")
         return False
+        
     def step2_search(self, keyword):
         search_url = "https://www3.jobthai.com/findresume/findresume.php?l=th"
         console.print(f"2️⃣   กำลังเข้าหน้าค้นหาและพิมพ์: '[bold]{keyword}[/]' ...", style="info")
