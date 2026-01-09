@@ -248,35 +248,43 @@ class JobThaiRowScraper:
 
     def step1_login(self):
         # ==============================================================================
-        # ส่วนที่ 1: Direct Login (ตามโค้ดที่คุณให้มา)
+        # ส่วนที่ 1: Direct Login (ปรับปรุงแก้ Click Intercepted)
         # ==============================================================================
         login_url = "https://www.jobthai.com/th/employer"
         console.print("1️⃣  เข้าสู่หน้า Login (Direct)...", style="info")
         
         try:
+            # ตั้งขนาดหน้าจอให้ใหญ่ขึ้นก่อน (กันปุ่มซ้อน)
+            self.driver.set_window_size(1920, 1080)
             self.driver.get(login_url)
             self.random_sleep(3, 5)
 
             # 1.1 พยายามปิด Popup โฆษณา (ถ้ามี)
             try:
-                WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="close-button"]'))).click()
+                close_btn = WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, '//*[@id="close-button"]')))
+                self.driver.execute_script("arguments[0].click();", close_btn) # 👈 ใช้ JS Click
                 console.print("   🤏 ปิด Popup สำเร็จ", style="dim")
                 self.random_sleep(1, 2)
             except: pass
 
-            # 1.2 กดปุ่มเมนูเพื่อเข้าสู่หน้า Login
+            # 1.2 กดปุ่มเมนูเพื่อเข้าสู่หน้า Login (ใช้ JS Click ทะลุทุกอย่าง)
             try:
                 # คลิกปุ่มเข้าสู่ระบบ (มุมขวาบน)
-                WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="menu-jobseeker-login"]'))).click()
+                login_menu = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="menu-jobseeker-login"]')))
+                self.driver.execute_script("arguments[0].click();", login_menu) # 👈 JS Click
                 self.random_sleep(1, 2)
-                # คลิกแท็บ "สำหรับบริษัท" (Employer)
-                WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="login_tab_employer"]'))).click()
+                
+                # คลิกแท็บ "สำหรับบริษัท" (Employer) - จุดที่เคย Error
+                employer_tab = WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, '//*[@id="login_tab_employer"]')))
+                self.driver.execute_script("arguments[0].scrollIntoView(true);", employer_tab) # เลื่อนหาก่อน
+                time.sleep(1)
+                self.driver.execute_script("arguments[0].click();", employer_tab) # 👈 JS Click
+                console.print("   point_right: กดสลับแท็บ Employer สำเร็จ (JS Force)", style="dim")
                 self.random_sleep(1, 2)
             except Exception as e:
-                console.print(f"   ⚠️ หาปุ่มเมนูไม่เจอ ({e})", style="warning")
-                # ถ้าหาปุ่มไม่เจอ ไม่ต้อง return False ให้ไหลไปลองหาช่องกรอกเลย (เผื่อมันอยู่หน้านั้นแล้ว)
+                console.print(f"   ⚠️ กดปุ่มเมนูไม่ได้ (ข้ามไปหาช่องกรอกเลย): {e}", style="warning")
 
-            # 1.3 วนลูปหาช่อง Username / Password (แบบกวาดทุก Selector)
+            # 1.3 วนลูปหาช่อง Username / Password
             user_input = None; pass_input = None
             
             # หา Username
@@ -298,6 +306,7 @@ class JobThaiRowScraper:
             # 1.4 ถ้าเจอช่องครบ ให้กรอกข้อมูล
             if user_input and pass_input:
                 console.print("   📝 เจอช่องกรอกแล้ว กำลังล็อกอิน...", style="info")
+                # ใช้ Send Keys ธรรมดา เพราะ input มักไม่ค่อยโดนบัง
                 user_input.clear(); user_input.send_keys(MY_USERNAME)
                 pass_input.clear(); pass_input.send_keys(MY_PASSWORD)
                 pass_input.send_keys(Keys.ENTER)
@@ -307,7 +316,7 @@ class JobThaiRowScraper:
                     time.sleep(1)
                     if "auth.jobthai.com" not in self.driver.current_url and "login" not in self.driver.current_url:
                         console.print("✅ Login แบบปกติสำเร็จ!", style="success")
-                        time.sleep(5)
+                        time.sleep(2)
                         return True
             else:
                 console.print("   ❌ หาช่องกรอก User/Pass ไม่เจอ", style="error")
@@ -316,7 +325,7 @@ class JobThaiRowScraper:
             console.print(f"⚠️ Direct Login Error: {e}", style="warning")
 
         # ==============================================================================
-        # ส่วนที่ 2: Cookie Bypass (แผนสำรอง ถ้าข้างบนพัง)
+        # ส่วนที่ 2: Cookie Bypass (แผนสำรอง)
         # ==============================================================================
         console.print("🔄 Login ปกติไม่สำเร็จ... กำลังลองใช้ Cookie...", style="bold yellow")
         
