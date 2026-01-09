@@ -247,61 +247,87 @@ class JobThaiRowScraper:
         except: return ""
 
     def step1_login(self):
-        # ---------------------------------------------------------
-        # ส่วนที่ 1: พยายาม Login แบบปกติก่อน (Direct Login)
-        # ---------------------------------------------------------
+        # ==============================================================================
+        # ส่วนที่ 1: Direct Login (ตามโค้ดที่คุณให้มา)
+        # ==============================================================================
         login_url = "https://www.jobthai.com/th/employer"
         console.print("1️⃣  เข้าสู่หน้า Login (Direct)...", style="info")
         
         try:
             self.driver.get(login_url)
             self.random_sleep(3, 5)
-            
-            if len(self.driver.find_elements(By.TAG_NAME, "iframe")) > 0:
-                console.print("   👀 พบ Iframe (เสี่ยง Cloudflare)", style="warning")
 
+            # 1.1 พยายามปิด Popup โฆษณา (ถ้ามี)
             try:
-                # พยายามหาช่องกรอก User/Pass
-                user_input = WebDriverWait(self.driver, 20).until(EC.visibility_of_element_located((By.CSS_SELECTOR, "input[name='username']")))
-                pass_input = self.driver.find_element(By.CSS_SELECTOR, "input[type='password']")
-            except:
-                # ถ้าหาไม่เจอ ให้โยน Error ไปเพื่อให้ไหลไปทำ Cookie
-                raise Exception("หาช่องกรอก User/Pass ไม่เจอ")
+                WebDriverWait(self.driver, 5).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="close-button"]'))).click()
+                console.print("   🤏 ปิด Popup สำเร็จ", style="dim")
+                self.random_sleep(1, 2)
+            except: pass
 
+            # 1.2 กดปุ่มเมนูเพื่อเข้าสู่หน้า Login
+            try:
+                # คลิกปุ่มเข้าสู่ระบบ (มุมขวาบน)
+                WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="menu-jobseeker-login"]'))).click()
+                self.random_sleep(1, 2)
+                # คลิกแท็บ "สำหรับบริษัท" (Employer)
+                WebDriverWait(self.driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="login_tab_employer"]'))).click()
+                self.random_sleep(1, 2)
+            except Exception as e:
+                console.print(f"   ⚠️ หาปุ่มเมนูไม่เจอ ({e})", style="warning")
+                # ถ้าหาปุ่มไม่เจอ ไม่ต้อง return False ให้ไหลไปลองหาช่องกรอกเลย (เผื่อมันอยู่หน้านั้นแล้ว)
+
+            # 1.3 วนลูปหาช่อง Username / Password (แบบกวาดทุก Selector)
+            user_input = None; pass_input = None
+            
+            # หา Username
+            for sel in ["input[name='username']", "input[type='email']", "#username"]:
+                try: 
+                    ele = self.driver.find_element(By.CSS_SELECTOR, sel)
+                    if ele.is_displayed():
+                        user_input = ele; break
+                except: continue
+            
+            # หา Password
+            for sel in ["input[name='password']", "input[type='password']", "#password"]:
+                try:
+                    ele = self.driver.find_element(By.CSS_SELECTOR, sel)
+                    if ele.is_displayed():
+                        pass_input = ele; break
+                except: continue
+
+            # 1.4 ถ้าเจอช่องครบ ให้กรอกข้อมูล
             if user_input and pass_input:
+                console.print("   📝 เจอช่องกรอกแล้ว กำลังล็อกอิน...", style="info")
                 user_input.clear(); user_input.send_keys(MY_USERNAME)
                 pass_input.clear(); pass_input.send_keys(MY_PASSWORD)
                 pass_input.send_keys(Keys.ENTER)
                 
-                # รอตรวจสอบผลการ Login
+                # รอผลลัพธ์
                 for _ in range(30):
                     time.sleep(1)
                     if "auth.jobthai.com" not in self.driver.current_url and "login" not in self.driver.current_url:
-                        console.print("✅ Login แบบกรอกรหัสสำเร็จ!", style="success")
+                        console.print("✅ Login แบบปกติสำเร็จ!", style="success")
+                        time.sleep(5)
                         return True
-            
-            # ถ้าหลุด Loop มาได้แปลว่ายัง Login ไม่ผ่าน
-            console.print("⚠️ Login ปกติไม่สำเร็จ จะลองใช้ Cookie...", style="warning")
+            else:
+                console.print("   ❌ หาช่องกรอก User/Pass ไม่เจอ", style="error")
 
         except Exception as e:
-            console.print(f"⚠️ Direct Login Error: {e} -> กำลังสลับไปใช้ Cookie...", style="warning")
+            console.print(f"⚠️ Direct Login Error: {e}", style="warning")
 
-
-        # ---------------------------------------------------------
-        # ส่วนที่ 2: ถ้าข้างบนพลาด ให้ใช้ Cookie (Cookie Bypass)
-        # ---------------------------------------------------------
+        # ==============================================================================
+        # ส่วนที่ 2: Cookie Bypass (แผนสำรอง ถ้าข้างบนพัง)
+        # ==============================================================================
+        console.print("🔄 Login ปกติไม่สำเร็จ... กำลังลองใช้ Cookie...", style="bold yellow")
+        
         cookies_env = os.getenv("COOKIES_JSON")
         if cookies_env:
-            console.print("🍪 ใช้ Cookie Bypass (Fallback)...", style="bold green")
             try:
-                # ต้อง load หน้าเว็บหลักก่อน add cookie
                 if "jobthai.com" not in self.driver.current_url:
                     self.driver.get("https://www.jobthai.com/th/employer")
-                    time.sleep(2)
-
+                
                 cookies_list = json.loads(cookies_env)
                 for cookie in cookies_list:
-                    # กรองเฉพาะค่าที่จำเป็น
                     c = {k: v for k, v in cookie.items() if k in ['name', 'value', 'domain', 'path', 'expiry', 'secure', 'httpOnly']}
                     try: self.driver.add_cookie(c)
                     except: pass
@@ -309,7 +335,6 @@ class JobThaiRowScraper:
                 self.driver.refresh()
                 time.sleep(5)
                 
-                # ลองเข้าหน้า Resume เพื่อเช็คว่าผ่านไหม
                 self.driver.get("https://www3.jobthai.com/findresume/findresume.php?l=th")
                 time.sleep(3)
                 
@@ -319,8 +344,7 @@ class JobThaiRowScraper:
             except Exception as e: 
                 console.print(f"❌ Cookie Error: {e}", style="error")
 
-        # ถ้าทำทั้ง 2 วิธีแล้วยังไม่ได้
-        console.print("❌ Login ล้มเหลวทุกวิธี", style="error")
+        console.print("💀 Login ล้มเหลวทุกวิธี", style="bold red")
         return False
 
     def step2_search(self, keyword):
