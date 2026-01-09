@@ -277,7 +277,7 @@ class JobThaiRowScraper:
                 time.sleep(1)
                 self.driver.execute_script("arguments[0].click();", employer_tab)
                 console.print("   👉 กดสลับแท็บ Employer สำเร็จ (รอ 5 วิ...)", style="dim")
-                time.sleep(10)
+                time.sleep(20)
             except Exception as e:
                 console.print(f"   ⚠️ กดเมนูไม่สำเร็จ (อาจจะอยู่หน้านั้นแล้ว): {e}", style="warning")
 
