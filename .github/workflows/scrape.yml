@@ -59,9 +59,7 @@ jobs:
           echo "EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}" >> User.env
           echo "EMAIL_RECEIVER=${{ secrets.EMAIL_RECEIVER }}" >> User.env
           
-          # ❌ ลบ 2 บรรทัดนี้ออกครับ (ตัวต้นเหตุปัญหา)
-          # echo "G_SHEET_KEY=..." >> User.env
-          # echo "G_SHEET_NAME=..." >> User.env
+    
 
       # 6. รันโค้ด Python
       - name: Run Scraper
